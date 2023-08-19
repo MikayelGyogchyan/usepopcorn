@@ -55,18 +55,34 @@ const KEY = "4b62966b";
 export default function App() {
   const [movies, setMovies] = useState(tempMovieData);
   const [watched, setWatched] = useState(tempWatchedData);
-  const [isLoading, setIsLoading] = useState(false)
-  const query = "interstellar";
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState("");
+  const query = "dsSDBfsb";
 
   useEffect(function () {
     async function fetchMovies() {
-      setIsLoading(true)
-      const res = await fetch(
-        `http://www.omdbapi.com/?apikey=${KEY}&s=${query}`
-      );
-      const data = await res.json();
-      setMovies(data.Search);
-      setIsLoading(false)
+      try {
+        setIsLoading(true);
+        const res = await fetch(
+          `http://www.omdbapi.com/?apikey=${KEY}&s=${query}`
+        );
+
+        if (!res.ok) {
+          throw new Error("Something went wrong with fetching movies");
+        }
+
+        const data = await res.json();
+        if (data.Response === "False") {
+          throw new Error("Movie not found");
+        }
+        setMovies(data.Search);
+        console.log(data);
+      } catch (err) {
+        console.error(err.message);
+        setError(err.message);
+      } finally {
+        setIsLoading(false);
+      }
     }
     fetchMovies();
   }, []);
@@ -80,9 +96,12 @@ export default function App() {
 
       <Main>
         <Box>
-          {isLoading ? <Loader/> : <MovieList movies={movies} />}
+          {/* # mutually exclusive conditions. Either it is Loading, or it is not loading and there is no error, or there is an error. Only one of these 3 can be true at the same time. */}
+          {isLoading && <Loader />}
+          {!isLoading && !error && <MovieList movies={movies} />}
+          {error && <ErrorMessage message={error} />}
         </Box>
-
+        
         <Box>
           <WatchedSummary watched={watched} />
           <WatchedMoviesList watched={watched} />
@@ -93,9 +112,15 @@ export default function App() {
 }
 
 function Loader() {
+  return <p className="loader">loading...</p>;
+}
+
+function ErrorMessage({ message }) {
   return (
-    <p className="loader">loading...</p>
-  )
+    <p className="error">
+      <span>❌</span> {message}
+    </p>
+  );
 }
 
 function NavBar({ children }) {
@@ -154,30 +179,6 @@ function Box({ children }) {
     </div>
   );
 }
-
-/*
-function WatchedBox() {
-  const [watched, setWatched] = useState(tempWatchedData);
-  const [isOpen2, setIsOpen2] = useState(true);
-
-  return (
-    <div className="box">
-      <button
-        className="btn-toggle"
-        onClick={() => setIsOpen2((open) => !open)}
-      >
-        {isOpen2 ? "–" : "+"}
-      </button>
-      {isOpen2 && (
-        <>
-          <WatchedSummary watched={watched} />
-          <WatchedMoviesList watched={watched} />
-        </>
-      )}
-    </div>
-  );
-}
-*/
 
 function MovieList({ movies }) {
   return (
